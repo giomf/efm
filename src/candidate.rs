@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use std::{
+    fmt::Display,
     sync::{Arc, Mutex},
     thread,
     time::Duration,
@@ -17,10 +18,19 @@ pub struct CandidateInfo {
     pub mac_address: String,
 }
 
+impl Display for CandidateInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!(
+            "{} {} {}",
+            self.hostname, self.address, self.mac_address
+        ))
+    }
+}
+
 pub fn get_candidates() -> Result<Vec<CandidateInfo>> {
     let client = Arc::new(ServiceDaemon::new().context("Failed to mdns service daemon")?);
-    let nodes: Arc<Mutex<Vec<ServiceInfo>>> = Arc::new(Mutex::new(Vec::new()));
-    let nodes_clone = nodes.clone();
+    let candidates: Arc<Mutex<Vec<ServiceInfo>>> = Arc::new(Mutex::new(Vec::new()));
+    let candidates_clone = candidates.clone();
     let receiver = client
         .browse(SERVICE_NAME)
         .context("Failed to create mdns receiver")?;
@@ -29,7 +39,7 @@ pub fn get_candidates() -> Result<Vec<CandidateInfo>> {
         while let Ok(event) = receiver.recv() {
             match event {
                 ServiceEvent::ServiceResolved(info) => {
-                    nodes_clone.lock().unwrap().push(info);
+                    candidates_clone.lock().unwrap().push(info);
                 }
                 _ => (),
             }
@@ -37,7 +47,7 @@ pub fn get_candidates() -> Result<Vec<CandidateInfo>> {
     });
 
     thread::sleep(Duration::from_secs(SERVICE_BROWSE_DURATION_SEC));
-    let candidates = nodes
+    let candidates = candidates
         .lock()
         .unwrap()
         .iter()

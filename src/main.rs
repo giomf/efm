@@ -1,12 +1,17 @@
+mod candidate;
 mod cli;
-mod node;
+mod config;
+mod ui;
 
 use anyhow::{Context, Result};
+use candidate::get_candidates;
 use clap::Parser;
 use cli::Cli;
-use node::get_candidates;
+use config::{Config, MemberInfo};
 use reqwest::blocking::Client;
-use std::{fs::File, io::Read};
+use std::{fs::File, io::Read, path::Path};
+
+const CONFIG_DEFAULT_PATH: &str = "./config.toml";
 
 fn update_firmware(file_path: &str, url: &str) -> Result<()> {
     let mut file = File::open(file_path)
@@ -40,11 +45,25 @@ fn update_firmware(file_path: &str, url: &str) -> Result<()> {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    let config_path = cli.config.unwrap_or(CONFIG_DEFAULT_PATH.to_string());
+    let config_path = Path::new(&config_path);
 
     match cli.command {
         cli::Commands::Adopt => {
+            let mut config = Config::load(config_path).context("Failed to load config")?;
             let candidates = get_candidates()?;
-            dbg!(candidates);
+            let mut members: Vec<MemberInfo> = ui::prompt_multiselect(
+                &format!(
+                    "Found {} candidate(s) to adopt. Please select:",
+                    candidates.len()
+                ),
+                candidates,
+            )?
+            .into_iter()
+            .map(MemberInfo::from)
+            .collect();
+            config.members.append(&mut members);
+            config.save(config_path).context("Failed to save config")?;
         }
         cli::Commands::Update(arguments) => {
             update_firmware(&arguments.firmware, &arguments.url).with_context(|| {

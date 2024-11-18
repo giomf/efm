@@ -4,9 +4,10 @@ use clap::{Args, Parser, Subcommand};
 #[command(version, about = "ESP Fleet Manager", long_about = None)]
 #[clap(propagate_version = true)]
 pub struct Cli {
-    // /// Config path
-    // #[arg(global = true, short, long)]
-    // pub config: Option<String>,
+    /// Config path
+    #[arg(global = true, short, long)]
+    pub config: Option<String>,
+
     #[command(subcommand)]
     pub command: Commands,
 }
