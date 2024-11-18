@@ -1,0 +1,10 @@
+[package]
+name = "efm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.93"
+clap = { version = "4.5.21", features = ["cargo", "derive"] }
+mdns-sd = "0.11.5"
+reqwest = { version = "0.12.9", features = ["blocking", "rustls-tls"], default-features = false }
