@@ -8,22 +8,17 @@ use std::{
 };
 
 const SERVICE_NAME: &str = "_efm._tcp.local.";
-const SERVICE_TXT_MAC_NAME: &str = "mac";
 const SERVICE_BROWSE_DURATION_SEC: u64 = 1;
 
 #[derive(Debug, Clone, Default)]
 pub struct CandidateInfo {
     pub hostname: String,
     pub address: String,
-    pub mac_address: String,
 }
 
 impl Display for CandidateInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!(
-            "{} {} {}",
-            self.hostname, self.address, self.mac_address
-        ))
+        f.write_str(&format!("{} {}", self.hostname, self.address))
     }
 }
 
@@ -58,10 +53,6 @@ pub fn get_candidates() -> Result<Vec<CandidateInfo>> {
                 .iter()
                 .next()
                 .unwrap()
-                .to_string(),
-            mac_address: candidate
-                .get_property_val_str(SERVICE_TXT_MAC_NAME)
-                .expect("TXT Record not found")
                 .to_string(),
         })
         .collect();

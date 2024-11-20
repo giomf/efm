@@ -12,7 +12,6 @@ pub struct Config {
 pub struct MemberInfo {
     pub hostname: String,
     pub address: String,
-    pub mac_address: String,
 }
 
 impl Config {
@@ -37,7 +36,6 @@ impl From<CandidateInfo> for MemberInfo {
         Self {
             hostname: candidate.hostname,
             address: candidate.address,
-            mac_address: candidate.mac_address,
         }
     }
 }
