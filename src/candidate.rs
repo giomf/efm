@@ -29,7 +29,7 @@ pub fn get_candidates() -> Result<Vec<Candidate>> {
         .browse(SERVICE_NAME)
         .context("Failed to create mdns receiver")?;
 
-    std::thread::spawn(move || {
+    thread::spawn(move || {
         while let Ok(event) = receiver.recv() {
             match event {
                 ServiceEvent::ServiceResolved(info) => {
@@ -47,7 +47,7 @@ pub fn get_candidates() -> Result<Vec<Candidate>> {
         .unwrap()
         .iter()
         .map(|candidate| Candidate {
-            hostname: candidate.get_hostname().to_string().replace(".local", ""),
+            hostname: candidate.get_hostname().to_string().replace(".local.", ""),
         })
         .collect();
     Ok(candidates)
