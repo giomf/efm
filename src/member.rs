@@ -17,7 +17,7 @@ pub struct Member {
 
 #[derive(Deserialize)]
 pub struct MemberStatus {
-    pub slot: String,
+    pub hostname: String,
     pub version: String,
 }
 
