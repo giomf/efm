@@ -1,7 +1,7 @@
 use crate::candidate::CandidateInfo;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::{fs, path::Path};
+use std::{fmt::Display, fs, path::Path};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -37,5 +37,11 @@ impl From<CandidateInfo> for MemberInfo {
             hostname: candidate.hostname,
             address: candidate.address,
         }
+    }
+}
+
+impl Display for MemberInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("{} {}", self.hostname, self.address))
     }
 }

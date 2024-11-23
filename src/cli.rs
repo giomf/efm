@@ -25,8 +25,4 @@ pub struct Update {
     /// The firmware to use for update
     #[arg(long)]
     pub firmware: String,
-
-    /// The URL of the device
-    #[arg(long)]
-    pub url: String,
 }
