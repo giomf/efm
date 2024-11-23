@@ -17,11 +17,11 @@ pub struct Cli {
 pub enum Commands {
     ///Prints available devices in network
     Adopt,
-    Update(Update),
+    Update(UpdateArguments),
 }
 
 #[derive(Debug, Args)]
-pub struct Update {
+pub struct UpdateArguments {
     /// The firmware to use for update
     #[arg(long)]
     pub firmware: String,

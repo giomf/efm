@@ -17,7 +17,7 @@ pub struct Member {
 
 #[derive(Deserialize)]
 pub struct MemberStatus {
-    pub _slot: String,
+    pub slot: String,
     pub version: String,
 }
 
@@ -45,9 +45,7 @@ impl Member {
             .with_context(|| format!("Failed to update firmware of {}", self.hostname))?;
 
         // Handle the response from the server
-        if response.status().is_success() {
-            println!("Firmware update successful!");
-        } else {
+        if !response.status().is_success() {
             anyhow::bail!(
                 "Failed to update frimware of {} ({})",
                 self.hostname,

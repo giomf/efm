@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.93"
 clap = { version = "4.5.21", features = ["cargo", "derive"] }
+colored = "2.1.0"
 indicatif = "0.17.9"
 inquire = "0.7.5"
 mdns-sd = "0.11.5"

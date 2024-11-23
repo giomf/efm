@@ -7,7 +7,8 @@ mod ui;
 use anyhow::{Context, Result};
 use candidate::get_candidates;
 use clap::Parser;
-use cli::Cli;
+use cli::{Cli, Commands, UpdateArguments};
+use colored::Colorize;
 use config::Config;
 use member::Member;
 use std::{
@@ -27,45 +28,53 @@ fn main() -> Result<()> {
     let mut config = Config::load(config_path).context("Failed to load config")?;
 
     match cli.command {
-        cli::Commands::Adopt => {
-            let candidates = get_candidates()?;
-            let mut members: Vec<Member> = ui::prompt_multiselect(
-                &format!(
-                    "Found {} candidate(s) to adopt. Please select:",
-                    candidates.len()
-                ),
-                candidates,
-            )?
-            .into_iter()
-            .map(Member::from)
-            .collect();
-
-            config.members.append(&mut members);
-            config.save(config_path).context("Failed to save config")?;
-        }
-        cli::Commands::Update(arguments) => {
-            let member = ui::prompt_select("Select a member to update:", config.members)?;
-            let member_version = member.status()?.version;
-            let update_version = extract_value_from_image(
-                &arguments.firmware,
-                IMAGE_VERSION_OFFSET,
-                IMAGE_VERSION_LENGTH,
-            )?;
-
-            let result = ui::promt_confirm(&format!(
-                "Current version is {member_version}. Update to {update_version}?"
-            ))?;
-
-            if result {
-                member.update(&arguments.firmware).with_context(|| {
-                    format!(
-                        "Error occurred while uploading file: {}",
-                        arguments.firmware
-                    )
-                })?;
-            }
-        }
+        Commands::Adopt => adopt(&mut config, config_path)?,
+        Commands::Update(arguments) => update(config, arguments)?,
     };
+
+    Ok(())
+}
+
+fn adopt(config: &mut Config, config_path: &Path) -> Result<()> {
+    let candidates = get_candidates()?;
+    let mut members: Vec<Member> = ui::prompt_multiselect(
+        &format!(
+            "Found {} candidate(s) to adopt. Please select:",
+            candidates.len().to_string().yellow()
+        ),
+        candidates,
+    )?
+    .into_iter()
+    .map(Member::from)
+    .collect();
+
+    config.members.append(&mut members);
+    config.save(config_path).context("Failed to save config")?;
+
+    Ok(())
+}
+
+fn update(config: Config, arguments: UpdateArguments) -> Result<()> {
+    let member = ui::prompt_select("Select a member to update:", config.members)?;
+    let member_version = member.status()?.version;
+    let update_version = extract_value_from_image(
+        &arguments.firmware,
+        IMAGE_VERSION_OFFSET,
+        IMAGE_VERSION_LENGTH,
+    )?;
+
+    let result = ui::promt_confirm(&format!(
+        "Current version is {}. Update to {}?",
+        member_version.yellow(),
+        update_version.green()
+    ))?;
+
+    if result {
+        member
+            .update(&arguments.firmware)
+            .context("Failed updating firmware")?;
+        println!("Firmware update successful");
+    }
 
     Ok(())
 }
