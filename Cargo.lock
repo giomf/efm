@@ -277,6 +277,7 @@ dependencies = [
  "mdns-sd",
  "reqwest",
  "serde",
+ "serde_json",
  "toml",
 ]
 
