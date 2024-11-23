@@ -17,17 +17,11 @@ pub struct Member {
 
 #[derive(Deserialize)]
 pub struct MemberStatus {
-    pub slot: String,
+    pub _slot: String,
     pub version: String,
 }
 
 impl Member {
-    pub fn new(host: &str) -> Self {
-        Self {
-            hostname: host.to_string(),
-        }
-    }
-
     pub fn update(&self, file_path: &str) -> Result<()> {
         let file = File::open(file_path)
             .with_context(|| format!("Failed to open firmware {}", file_path))?;
