@@ -9,6 +9,8 @@ use std::{fmt::Display, sync::LazyLock, time::Duration};
 
 const SPINNER_TICK: u64 = 100;
 pub const TICK: &str = "✔";
+const PROGRESS_BAR_TEMPLATE: &str =
+    "[{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})";
 
 static RENDER_CONFIG: LazyLock<RenderConfig> = LazyLock::new(|| {
     RenderConfig::default_colored()
@@ -54,4 +56,14 @@ pub fn spinner_start(message: &str) -> ProgressBar {
         .with_message(message.to_string());
     spinner.enable_steady_tick(Duration::from_millis(SPINNER_TICK));
     spinner
+}
+pub fn progressbar(length: u64) -> ProgressBar {
+    let progress_bar = ProgressBar::new(length);
+    progress_bar.set_style(
+        ProgressStyle::default_bar()
+            .template(PROGRESS_BAR_TEMPLATE)
+            .unwrap()
+            .progress_chars("#>-"),
+    );
+    progress_bar
 }

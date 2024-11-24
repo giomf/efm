@@ -75,9 +75,16 @@ fn update(config: Config, arguments: UpdateArguments) -> Result<()> {
     ))?;
 
     if result {
+        let file = File::open(&arguments.firmware)
+            .with_context(|| format!("Failed to open firmware {}", arguments.firmware))?;
+        let file_size = file.metadata()?.len();
+        let progress_bar = ui::progressbar(file_size);
+        let reader = progress_bar.wrap_read(file);
+
         member
-            .update(&arguments.firmware)
+            .update(reader, file_size)
             .context("Failed updating firmware")?;
+        progress_bar.finish_and_clear();
         println!("{} Firmware update successful", TICK.green());
     }
 

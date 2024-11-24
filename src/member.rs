@@ -1,14 +1,11 @@
 use crate::candidate::Candidate;
 use anyhow::{Context, Result};
-use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, fs::File};
+use std::{fmt::Display, io::Read};
 
 const ENDPOINT_UPDATE: &str = "update";
 const ENDPOINT_STATUS: &str = "status";
-const PROGRESS_BAR_TEMPLATE: &str =
-    "[{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Member {
@@ -22,25 +19,15 @@ pub struct MemberStatus {
 }
 
 impl Member {
-    pub fn update(&self, file_path: &str) -> Result<()> {
-        let file = File::open(file_path)
-            .with_context(|| format!("Failed to open firmware {}", file_path))?;
-        let file_size = file.metadata()?.len();
-
-        let progress_bar = ProgressBar::new(file_size);
-        progress_bar.set_style(
-            ProgressStyle::default_bar()
-                .template(PROGRESS_BAR_TEMPLATE)?
-                .progress_chars("#>-"),
-        );
-
-        let reader = progress_bar.wrap_read(file);
-
+    pub fn update<R>(&self, reader: R, size: u64) -> Result<()>
+    where
+        R: Read + Send + 'static,
+    {
         let url = self.create_url(ENDPOINT_UPDATE);
         let response = Client::new()
             .post(&url)
             .header("Content-Type", "application/octet-stream")
-            .body(reqwest::blocking::Body::sized(reader, file_size))
+            .body(reqwest::blocking::Body::sized(reader, size))
             .send()
             .with_context(|| format!("Failed to update firmware of {}", self.hostname))?;
 
