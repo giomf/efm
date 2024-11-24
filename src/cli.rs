@@ -17,6 +17,8 @@ pub struct Cli {
 pub enum Commands {
     /// Scan network for candidates and adopts them
     Adopt,
+    /// Check the status of members
+    Status(StatusArguments),
     /// Update a member
     Update(UpdateArguments),
 }
@@ -26,4 +28,10 @@ pub struct UpdateArguments {
     /// The firmware to use for update
     #[arg(long)]
     pub firmware: String,
+}
+
+#[derive(Debug, Args)]
+pub struct StatusArguments {
+    /// The firmware to use for update
+    pub hostname: Option<String>,
 }

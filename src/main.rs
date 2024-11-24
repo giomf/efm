@@ -7,10 +7,10 @@ mod ui;
 use anyhow::{Context, Result};
 use candidate::get_candidates;
 use clap::Parser;
-use cli::{Cli, Commands, UpdateArguments};
+use cli::{Cli, Commands, StatusArguments, UpdateArguments};
 use colored::Colorize;
 use config::Config;
-use member::Member;
+use member::{Member, MemberStatus};
 use std::{
     fs::File,
     io::{Read, Seek, SeekFrom},
@@ -31,8 +31,46 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Adopt => adopt(&mut config, config_path)?,
         Commands::Update(arguments) => update(config, arguments)?,
+        Commands::Status(arguments) => status(&config, arguments)?,
     };
 
+    Ok(())
+}
+
+fn status(config: &Config, arguments: StatusArguments) -> Result<()> {
+    let spinner = ui::spinner_start("Fetch member status");
+
+    let status = config
+        .members
+        .iter()
+        .filter(|member| {
+            arguments
+                .hostname
+                .as_ref()
+                .map_or(true, |hostname| member.hostname == *hostname)
+        })
+        .map(|member| match member.status() {
+            Ok(information) => MemberStatus::Online(information),
+            Err(_) => MemberStatus::Offline(member.hostname.clone()),
+        })
+        .map(|status| match status {
+            MemberStatus::Online(info) => {
+                vec![info.hostname, "Online".green().to_string(), info.version]
+            }
+            MemberStatus::Offline(hostname) => {
+                vec![
+                    hostname,
+                    "Offline".red().to_string(),
+                    "n/a".red().to_string(),
+                ]
+            }
+        })
+        .collect();
+
+    spinner.finish();
+
+    let table = ui::table(vec!["Host", "State", "Version"], status);
+    println!("{table}");
     Ok(())
 }
 

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use colored::Colorize;
+use comfy_table::{presets::UTF8_FULL_CONDENSED, ContentArrangement, Table};
 use indicatif::{ProgressBar, ProgressStyle};
 use inquire::{
     ui::{RenderConfig, StyleSheet},
@@ -66,4 +67,18 @@ pub fn progressbar(length: u64) -> ProgressBar {
             .progress_chars("#>-"),
     );
     progress_bar
+}
+
+pub fn table(header: Vec<&str>, rows: Vec<Vec<String>>) -> String {
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL_CONDENSED)
+        .set_header(header)
+        .set_content_arrangement(ContentArrangement::Dynamic);
+
+    for row in rows {
+        table.add_row(row);
+    }
+
+    table.to_string()
 }

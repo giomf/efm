@@ -12,8 +12,14 @@ pub struct Member {
     pub hostname: String,
 }
 
-#[derive(Deserialize)]
-pub struct MemberStatus {
+#[derive(Debug, Clone)]
+pub enum MemberStatus {
+    Online(MemberInformation),
+    Offline(String),
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct MemberInformation {
     pub hostname: String,
     pub version: String,
 }
@@ -43,9 +49,9 @@ impl Member {
         Ok(())
     }
 
-    pub fn status(&self) -> Result<MemberStatus> {
+    pub fn status(&self) -> Result<MemberInformation> {
         let url = self.create_url(ENDPOINT_STATUS);
-        let status: MemberStatus = Client::new().get(url).send()?.json()?;
+        let status: MemberInformation = Client::new().get(url).send()?.json()?;
         Ok(status)
     }
 
