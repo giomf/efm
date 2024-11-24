@@ -1,9 +1,14 @@
 use anyhow::Result;
+use colored::Colorize;
+use indicatif::{ProgressBar, ProgressStyle};
 use inquire::{
     ui::{RenderConfig, StyleSheet},
     Confirm, MultiSelect, Select,
 };
-use std::{fmt::Display, sync::LazyLock};
+use std::{fmt::Display, sync::LazyLock, time::Duration};
+
+const SPINNER_TICK: u64 = 100;
+pub const TICK: &str = "✔";
 
 static RENDER_CONFIG: LazyLock<RenderConfig> = LazyLock::new(|| {
     RenderConfig::default_colored()
@@ -35,4 +40,18 @@ pub fn promt_confirm(message: &str) -> Result<bool> {
         .with_render_config(*RENDER_CONFIG)
         .prompt()?;
     Ok(answer)
+}
+
+pub fn spinner_start(message: &str) -> ProgressBar {
+    let spinner = ProgressBar::new_spinner()
+        .with_style(ProgressStyle::default_spinner().tick_strings(&[
+            "⠲",
+            "⠴",
+            "⠦",
+            "⠖",
+            TICK.green().to_string().as_str(),
+        ]))
+        .with_message(message.to_string());
+    spinner.enable_steady_tick(Duration::from_millis(SPINNER_TICK));
+    spinner
 }

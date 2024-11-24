@@ -16,6 +16,7 @@ use std::{
     io::{Read, Seek, SeekFrom},
     path::Path,
 };
+use ui::TICK;
 
 const CONFIG_DEFAULT_PATH: &str = "./config.toml";
 const IMAGE_VERSION_OFFSET: u64 = 48;
@@ -36,7 +37,9 @@ fn main() -> Result<()> {
 }
 
 fn adopt(config: &mut Config, config_path: &Path) -> Result<()> {
+    let spinner = ui::spinner_start("Scan network for candidates");
     let candidates = get_candidates()?;
+    spinner.finish();
     let mut members: Vec<Member> = ui::prompt_multiselect(
         &format!(
             "Found {} candidate(s) to adopt. Please select:",
@@ -56,12 +59,14 @@ fn adopt(config: &mut Config, config_path: &Path) -> Result<()> {
 
 fn update(config: Config, arguments: UpdateArguments) -> Result<()> {
     let member = ui::prompt_select("Select a member to update:", config.members)?;
+    let spinner = ui::spinner_start("Fetching member status");
     let member_version = member.status()?.version;
     let update_version = extract_value_from_image(
         &arguments.firmware,
         IMAGE_VERSION_OFFSET,
         IMAGE_VERSION_LENGTH,
     )?;
+    spinner.finish();
 
     let result = ui::promt_confirm(&format!(
         "Current version is {}. Update to {}?",
@@ -73,7 +78,7 @@ fn update(config: Config, arguments: UpdateArguments) -> Result<()> {
         member
             .update(&arguments.firmware)
             .context("Failed updating firmware")?;
-        println!("Firmware update successful");
+        println!("{} Firmware update successful", TICK.green());
     }
 
     Ok(())

@@ -15,8 +15,9 @@ pub struct Cli {
 /// Subcommands of the application
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    ///Prints available devices in network
+    /// Scan network for candidates and adopts them
     Adopt,
+    /// Update a member
     Update(UpdateArguments),
 }
 
