@@ -5,12 +5,12 @@ mod member;
 mod ui;
 
 use anyhow::{Context, Result};
-use candidate::get_candidates;
+use candidate::{get_candidates, Candidate};
 use clap::Parser;
 use cli::{Cli, Commands, StatusArguments, UpdateArguments};
 use colored::Colorize;
 use config::Config;
-use member::{Member, MemberStatus};
+use member::MemberStatus;
 use std::{
     fs::File,
     io::{Read, Seek, SeekFrom},
@@ -33,12 +33,100 @@ fn main() -> Result<()> {
         Commands::Update(arguments) => update(config, arguments)?,
         Commands::Status(arguments) => status(&config, arguments)?,
         Commands::List => list(&config),
+        Commands::Forget => forget(&mut config, config_path)?,
     };
 
     Ok(())
 }
 
+fn adopt(config: &mut Config, config_path: &Path) -> Result<()> {
+    let spinner = ui::spinner_start("Scan network for candidates");
+    let candidates = get_candidates(&config.members)?;
+    spinner.finish();
+
+    if candidates.is_empty() {
+        println!("No candidates found to adopt");
+        return Ok(());
+    }
+
+    let selected_candidates: Vec<Candidate> = ui::prompt_multiselect(
+        &format!(
+            "Found {} candidate(s) to adopt. Please select:",
+            candidates.len().to_string().yellow()
+        ),
+        candidates,
+    )?;
+
+    config.adopt(&selected_candidates);
+    config.save(config_path).context("Failed to save config")?;
+
+    let hostnames: Vec<_> = selected_candidates
+        .iter()
+        .map(|member| member.hostname.clone())
+        .collect();
+    println!(
+        "{} Successfully adopt {}",
+        TICK.green(),
+        hostnames.join(",")
+    );
+    Ok(())
+}
+
+fn forget(config: &mut Config, config_path: &Path) -> Result<()> {
+    let members = ui::prompt_multiselect("Select members to forget", config.members.clone())?;
+    config.forget(&members);
+    config.save(config_path).context("Failed to save config")?;
+    let hostnames: Vec<_> = members
+        .iter()
+        .map(|member| member.hostname.clone())
+        .collect();
+    println!(
+        "{} Successfully forget {}",
+        TICK.green(),
+        hostnames.join(",")
+    );
+    Ok(())
+}
+
+fn update(config: Config, arguments: UpdateArguments) -> Result<()> {
+    let member = ui::prompt_select("Select a member to update:", config.members)?;
+    let spinner = ui::spinner_start("Fetching member status");
+    let member_version = member.status()?.version;
+    let update_version = extract_value_from_image(
+        &arguments.firmware,
+        IMAGE_VERSION_OFFSET,
+        IMAGE_VERSION_LENGTH,
+    )?;
+    spinner.finish();
+
+    let result = ui::promt_confirm(&format!(
+        "Current version is {}. Update to {}?",
+        member_version.yellow(),
+        update_version.green()
+    ))?;
+
+    if result {
+        let file = File::open(&arguments.firmware)
+            .with_context(|| format!("Failed to open firmware {}", arguments.firmware))?;
+        let file_size = file.metadata()?.len();
+        let progress_bar = ui::progressbar(file_size);
+        let reader = progress_bar.wrap_read(file);
+
+        member
+            .update(reader, file_size)
+            .context("Failed updating firmware")?;
+        progress_bar.finish_and_clear();
+        println!("{} Firmware update successful", TICK.green());
+    }
+
+    Ok(())
+}
+
 fn list(config: &Config) {
+    if config.members.is_empty() {
+        println!("No member adopted yet");
+        return;
+    }
     let members: Vec<_> = config
         .members
         .iter()
@@ -82,67 +170,6 @@ fn status(config: &Config, arguments: StatusArguments) -> Result<()> {
 
     let table = ui::table(vec!["Host", "State", "Version"], status);
     println!("{table}");
-    Ok(())
-}
-
-fn adopt(config: &mut Config, config_path: &Path) -> Result<()> {
-    let spinner = ui::spinner_start("Scan network for candidates");
-    let candidates = get_candidates(&config.members)?;
-    spinner.finish();
-
-    if candidates.is_empty() {
-        println!("No candidates found to adopt");
-        return Ok(());
-    }
-
-    let mut members: Vec<Member> = ui::prompt_multiselect(
-        &format!(
-            "Found {} candidate(s) to adopt. Please select:",
-            candidates.len().to_string().yellow()
-        ),
-        candidates,
-    )?
-    .into_iter()
-    .map(Member::from)
-    .collect();
-
-    config.members.append(&mut members);
-    config.save(config_path).context("Failed to save config")?;
-
-    Ok(())
-}
-
-fn update(config: Config, arguments: UpdateArguments) -> Result<()> {
-    let member = ui::prompt_select("Select a member to update:", config.members)?;
-    let spinner = ui::spinner_start("Fetching member status");
-    let member_version = member.status()?.version;
-    let update_version = extract_value_from_image(
-        &arguments.firmware,
-        IMAGE_VERSION_OFFSET,
-        IMAGE_VERSION_LENGTH,
-    )?;
-    spinner.finish();
-
-    let result = ui::promt_confirm(&format!(
-        "Current version is {}. Update to {}?",
-        member_version.yellow(),
-        update_version.green()
-    ))?;
-
-    if result {
-        let file = File::open(&arguments.firmware)
-            .with_context(|| format!("Failed to open firmware {}", arguments.firmware))?;
-        let file_size = file.metadata()?.len();
-        let progress_bar = ui::progressbar(file_size);
-        let reader = progress_bar.wrap_read(file);
-
-        member
-            .update(reader, file_size)
-            .context("Failed updating firmware")?;
-        progress_bar.finish_and_clear();
-        println!("{} Firmware update successful", TICK.green());
-    }
-
     Ok(())
 }
 

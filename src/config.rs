@@ -1,4 +1,4 @@
-use crate::member::Member;
+use crate::{candidate::Candidate, member::Member};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
@@ -22,5 +22,20 @@ impl Config {
         let file_content = toml::to_string_pretty(self).context("Failed to serialize config")?;
         fs::write(path, file_content).context("Failed to write config")?;
         Ok(())
+    }
+
+    pub fn adopt(&mut self, candidates: &Vec<Candidate>) {
+        let mut members = candidates
+            .into_iter()
+            .map(|candidate| Member {
+                hostname: candidate.hostname.clone(),
+            })
+            .collect();
+        self.members.append(&mut members);
+    }
+
+    pub fn forget(&mut self, members_to_remove: &Vec<Member>) {
+        self.members
+            .retain(|member| !members_to_remove.contains(&member))
     }
 }

@@ -7,7 +7,7 @@ use std::{fmt::Display, io::Read};
 const ENDPOINT_UPDATE: &str = "update";
 const ENDPOINT_STATUS: &str = "status";
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Member {
     pub hostname: String,
 }
