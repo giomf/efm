@@ -15,6 +15,8 @@ pub struct Cli {
 /// Subcommands of the application
 #[derive(Subcommand, Debug)]
 pub enum Commands {
+    /// List adopted members
+    List,
     /// Scan network for candidates and adopts them
     Adopt,
     /// Check the status of members

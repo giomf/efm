@@ -32,9 +32,20 @@ fn main() -> Result<()> {
         Commands::Adopt => adopt(&mut config, config_path)?,
         Commands::Update(arguments) => update(config, arguments)?,
         Commands::Status(arguments) => status(&config, arguments)?,
+        Commands::List => list(&config),
     };
 
     Ok(())
+}
+
+fn list(config: &Config) {
+    let members: Vec<_> = config
+        .members
+        .iter()
+        .map(|member| vec![member.hostname.clone()])
+        .collect();
+    let table = ui::table(vec!["Host"], members);
+    println!("{table}");
 }
 
 fn status(config: &Config, arguments: StatusArguments) -> Result<()> {
