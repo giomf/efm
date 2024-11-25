@@ -76,8 +76,14 @@ fn status(config: &Config, arguments: StatusArguments) -> Result<()> {
 
 fn adopt(config: &mut Config, config_path: &Path) -> Result<()> {
     let spinner = ui::spinner_start("Scan network for candidates");
-    let candidates = get_candidates()?;
+    let candidates = get_candidates(&config.members)?;
     spinner.finish();
+
+    if candidates.is_empty() {
+        println!("No candidates found to adopt");
+        return Ok(());
+    }
+
     let mut members: Vec<Member> = ui::prompt_multiselect(
         &format!(
             "Found {} candidate(s) to adopt. Please select:",

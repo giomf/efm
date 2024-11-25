@@ -7,6 +7,8 @@ use std::{
     time::Duration,
 };
 
+use crate::member::Member;
+
 const SERVICE_NAME: &str = "_efm._tcp.local.";
 const SERVICE_BROWSE_DURATION_SEC: u64 = 1;
 
@@ -21,7 +23,7 @@ impl Display for Candidate {
     }
 }
 
-pub fn get_candidates() -> Result<Vec<Candidate>> {
+pub fn get_candidates(members: &Vec<Member>) -> Result<Vec<Candidate>> {
     let client = Arc::new(ServiceDaemon::new().context("Failed to mdns service daemon")?);
     let candidates: Arc<Mutex<Vec<ServiceInfo>>> = Arc::new(Mutex::new(Vec::new()));
     let candidates_clone = candidates.clone();
@@ -46,8 +48,12 @@ pub fn get_candidates() -> Result<Vec<Candidate>> {
         .lock()
         .unwrap()
         .iter()
-        .map(|candidate| Candidate {
-            hostname: candidate.get_hostname().to_string().replace(".local.", ""),
+        .filter_map(|candidate| {
+            let hostname = candidate.get_hostname().to_string().replace(".local.", "");
+            if !members.iter().any(|member| member.hostname == hostname) {
+                return Some(Candidate { hostname });
+            }
+            None
         })
         .collect();
     Ok(candidates)
