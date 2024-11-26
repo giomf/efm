@@ -15,6 +15,7 @@ const SERVICE_BROWSE_DURATION_SEC: u64 = 1;
 #[derive(Debug, Clone, Default)]
 pub struct Candidate {
     pub hostname: String,
+    pub version: String,
 }
 
 impl Display for Candidate {
@@ -50,8 +51,12 @@ pub fn get_candidates(members: &Vec<Member>) -> Result<Vec<Candidate>> {
         .iter()
         .filter_map(|candidate| {
             let hostname = candidate.get_hostname().to_string().replace(".local.", "");
+            let version = candidate.get_property_val_str("version").unwrap();
             if !members.iter().any(|member| member.hostname == hostname) {
-                return Some(Candidate { hostname });
+                return Some(Candidate {
+                    hostname,
+                    version: version.to_string(),
+                });
             }
             None
         })

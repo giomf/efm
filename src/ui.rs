@@ -1,3 +1,4 @@
+use crate::member::{Member, MemberStatus};
 use anyhow::Result;
 use colored::Colorize;
 use comfy_table::{presets::UTF8_FULL_CONDENSED, ContentArrangement, Table};
@@ -7,6 +8,12 @@ use inquire::{
     Confirm, MultiSelect, Select,
 };
 use std::{fmt::Display, sync::LazyLock, time::Duration};
+
+const DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
+const TABLE_HEADER_HOST: &str = "Host";
+const TABLE_HEADER_STATE: &str = "State";
+const TABLE_HEADER_VERSION: &str = "Version";
+const TABLE_HEADER_TIME: &str = "Time";
 
 const SPINNER_TICK: u64 = 100;
 pub const TICK: &str = "✔";
@@ -20,6 +27,67 @@ static RENDER_CONFIG: LazyLock<RenderConfig> = LazyLock::new(|| {
             StyleSheet::new().with_fg(inquire::ui::Color::DarkYellow),
         ))
 });
+
+impl Display for Member {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.hostname)
+    }
+}
+
+pub trait Tableable {
+    fn header() -> Vec<String>;
+    fn row(&self) -> Vec<String>;
+}
+
+impl Tableable for Member {
+    fn header() -> Vec<String> {
+        vec![
+            "Host".to_string(),
+            "Version".to_string(),
+            "Time".to_string(),
+        ]
+    }
+
+    fn row(&self) -> Vec<String> {
+        vec![
+            self.hostname.clone(),
+            self.version.clone(),
+            self.timestamp.format(DATETIME_FORMAT).to_string(),
+        ]
+    }
+}
+
+impl Tableable for MemberStatus {
+    fn header() -> Vec<String> {
+        vec![
+            TABLE_HEADER_HOST.to_string(),
+            TABLE_HEADER_STATE.to_string(),
+            TABLE_HEADER_VERSION.to_string(),
+            TABLE_HEADER_TIME.to_string(),
+        ]
+    }
+
+    fn row(&self) -> Vec<String> {
+        match self {
+            MemberStatus::Online(member) => {
+                vec![
+                    member.hostname.clone(),
+                    "Online".to_string(),
+                    member.version.clone(),
+                    member.timestamp.format(DATETIME_FORMAT).to_string(),
+                ]
+            }
+            MemberStatus::Offline(member) => {
+                vec![
+                    member.hostname.clone(),
+                    "Offline".to_string(),
+                    member.version.clone(),
+                    member.timestamp.format(DATETIME_FORMAT).to_string(),
+                ]
+            }
+        }
+    }
+}
 
 pub fn prompt_multiselect<T: Display>(message: &str, options: Vec<T>) -> Result<Vec<T>> {
     let answer = MultiSelect::new(message, options)
@@ -69,7 +137,7 @@ pub fn progressbar(length: u64) -> ProgressBar {
     progress_bar
 }
 
-pub fn table(header: Vec<&str>, rows: Vec<Vec<String>>) -> String {
+pub fn table(header: Vec<String>, rows: Vec<Vec<String>>) -> String {
     let mut table = Table::new();
     table
         .load_preset(UTF8_FULL_CONDENSED)

@@ -10,13 +10,13 @@ use clap::Parser;
 use cli::{Cli, Commands, StatusArguments, UpdateArguments};
 use colored::Colorize;
 use config::Config;
-use member::MemberStatus;
+use member::{Member, MemberStatus};
 use std::{
     fs::File,
     io::{Read, Seek, SeekFrom},
     path::Path,
 };
-use ui::TICK;
+use ui::{Tableable, TICK};
 
 const CONFIG_DEFAULT_PATH: &str = "./config.toml";
 const IMAGE_VERSION_OFFSET: u64 = 48;
@@ -30,7 +30,7 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Adopt => adopt(&mut config, config_path)?,
-        Commands::Update(arguments) => update(config, arguments)?,
+        Commands::Update(arguments) => update(&mut config, config_path, arguments)?,
         Commands::Status(arguments) => status(&config, arguments)?,
         Commands::List => list(&config),
         Commands::Forget => forget(&mut config, config_path)?,
@@ -88,16 +88,14 @@ fn forget(config: &mut Config, config_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn update(config: Config, arguments: UpdateArguments) -> Result<()> {
-    let member = ui::prompt_select("Select a member to update:", config.members)?;
-    let spinner = ui::spinner_start("Fetching member status");
-    let member_version = member.status()?.version;
+fn update(config: &mut Config, config_path: &Path, arguments: UpdateArguments) -> Result<()> {
+    let member = ui::prompt_select("Select a member to update:", config.members.clone())?;
+    let member_version = member.version.clone();
     let update_version = extract_value_from_image(
         &arguments.firmware,
         IMAGE_VERSION_OFFSET,
         IMAGE_VERSION_LENGTH,
     )?;
-    spinner.finish();
 
     let result = ui::promt_confirm(&format!(
         "Current version is {}. Update to {}?",
@@ -116,6 +114,8 @@ fn update(config: Config, arguments: UpdateArguments) -> Result<()> {
             .update(reader, file_size)
             .context("Failed updating firmware")?;
         progress_bar.finish_and_clear();
+        config.update(member, update_version);
+        config.save(config_path)?;
         println!("{} Firmware update successful", TICK.green());
     }
 
@@ -127,12 +127,8 @@ fn list(config: &Config) {
         println!("No member adopted yet");
         return;
     }
-    let members: Vec<_> = config
-        .members
-        .iter()
-        .map(|member| vec![member.hostname.clone()])
-        .collect();
-    let table = ui::table(vec!["Host"], members);
+    let members: Vec<_> = config.members.iter().map(|member| member.row()).collect();
+    let table = ui::table(Member::header(), members);
     println!("{table}");
 }
 
@@ -148,27 +144,19 @@ fn status(config: &Config, arguments: StatusArguments) -> Result<()> {
                 .as_ref()
                 .map_or(true, |hostname| member.hostname == *hostname)
         })
-        .map(|member| match member.status() {
-            Ok(information) => MemberStatus::Online(information),
-            Err(_) => MemberStatus::Offline(member.hostname.clone()),
-        })
-        .map(|status| match status {
-            MemberStatus::Online(info) => {
-                vec![info.hostname, "Online".green().to_string(), info.version]
-            }
-            MemberStatus::Offline(hostname) => {
-                vec![
-                    hostname,
-                    "Offline".red().to_string(),
-                    "n/a".red().to_string(),
-                ]
-            }
+        .map(|member| {
+            let member = member.clone();
+            let status = match member.status() {
+                Ok(_) => MemberStatus::Online(member),
+                Err(_) => MemberStatus::Offline(member),
+            };
+            status.row()
         })
         .collect();
 
     spinner.finish();
 
-    let table = ui::table(vec!["Host", "State", "Version"], status);
+    let table = ui::table(MemberStatus::header(), status);
     println!("{table}");
     Ok(())
 }
@@ -183,6 +171,8 @@ fn extract_value_from_image(file: &str, offset: u64, length: u64) -> Result<Stri
     // Truncate buffer if fewer bytes were read
     buffer.truncate(bytes_read);
     // Convert the buffer to a String
-    let version = String::from_utf8(buffer)?;
+    let version = String::from_utf8_lossy(&buffer)
+        .trim_end_matches("\0")
+        .to_string();
     Ok(version)
 }

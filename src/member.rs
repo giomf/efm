@@ -1,8 +1,9 @@
 use crate::candidate::Candidate;
 use anyhow::{Context, Result};
+use chrono::{offset::Utc, DateTime};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, io::Read};
+use std::io::Read;
 
 const ENDPOINT_UPDATE: &str = "update";
 const ENDPOINT_STATUS: &str = "status";
@@ -10,21 +11,32 @@ const ENDPOINT_STATUS: &str = "status";
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Member {
     pub hostname: String,
+    pub version: String,
+    pub timestamp: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]
 pub enum MemberStatus {
-    Online(MemberInformation),
-    Offline(String),
+    Online(Member),
+    Offline(Member),
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone, Deserialize)]
-pub struct MemberInformation {
+pub struct Status {
     pub hostname: String,
     pub version: String,
 }
 
 impl Member {
+    pub fn new(hostname: &str, version: &str) -> Self {
+        Self {
+            hostname: hostname.to_string(),
+            timestamp: Utc::now(),
+            version: version.to_string(),
+        }
+    }
+
     pub fn update<R>(&self, reader: R, size: u64) -> Result<()>
     where
         R: Read + Send + 'static,
@@ -49,9 +61,9 @@ impl Member {
         Ok(())
     }
 
-    pub fn status(&self) -> Result<MemberInformation> {
+    pub fn status(&self) -> Result<Status> {
         let url = self.create_url(ENDPOINT_STATUS);
-        let status: MemberInformation = Client::new().get(url).send()?.json()?;
+        let status: Status = Client::new().get(url).send()?.json()?;
         Ok(status)
     }
 
@@ -62,14 +74,6 @@ impl Member {
 
 impl From<Candidate> for Member {
     fn from(candidate: Candidate) -> Self {
-        Self {
-            hostname: candidate.hostname,
-        }
-    }
-}
-
-impl Display for Member {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.hostname)
+        Member::new(&candidate.hostname, &candidate.version)
     }
 }
